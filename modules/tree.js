@@ -16,6 +16,7 @@ class TreeModule {
         this.isDrawingPolygon = false; // Flag for polygon drawing mode
         this.deletePolygonPoints = []; // Points for delete polygon
         this.isDrawingDeletePolygon = false; // Flag for delete polygon drawing mode
+        this.treesVisible = true; // Track tree visibility state
     }
 
     /**
@@ -132,6 +133,14 @@ class TreeModule {
         treeDeleteAllBtn.addEventListener('click', () => {
             this.deleteAllTrees();
         });
+        
+        // Tree visibility toggle button
+        const treeVisibilityToggle = document.getElementById('tree-visibility-toggle');
+        if (treeVisibilityToggle) {
+            treeVisibilityToggle.addEventListener('click', () => {
+                this.toggleTreesVisibility();
+            });
+        }
         
         // Brush shape selector - update UI immediately on change
         const brushShapeSelector = document.getElementById('brush-shape');
@@ -344,6 +353,9 @@ class TreeModule {
                 'source': 'tree-trunks-source',
                 'minzoom': 15,
                 'maxzoom': 24,
+                'layout': {
+                    'visibility': this.treesVisible ? 'visible' : 'none'
+                },
                 'paint': {
                     'fill-extrusion-color': '#8B4513', // Brown
                     'fill-extrusion-height': ['get', 'height'],
@@ -367,6 +379,9 @@ class TreeModule {
                 'source': 'tree-canopies-source',
                 'minzoom': 15,
                 'maxzoom': 24,
+                'layout': {
+                    'visibility': this.treesVisible ? 'visible' : 'none'
+                },
                 'paint': {
                     'fill-extrusion-color': '#008000', // Green
                     'fill-extrusion-height': ['+', ['get', 'base'], ['get', 'height']],
@@ -406,6 +421,7 @@ class TreeModule {
                             'minzoom': 12,
                             'maxzoom': 15,
                             'layout': {
+                                'visibility': this.treesVisible ? 'visible' : 'none',
                                 'icon-image': 'tree-icon',
                                 'icon-size': [
                                     'interpolate',
@@ -531,7 +547,14 @@ class TreeModule {
      * Update tree counter display
      */
     updateTreeCounter() {
-        const treeCount = this.data.treeTrunkData.features.length;
+        // Count unique tree IDs (not raw trunk features), since IDs are used to pair trunk/canopy.
+        // This avoids confusing situations where duplicate IDs inflate the trunk feature count.
+        const ids = new Set();
+        for (const t of this.data.treeTrunkData.features) {
+            const id = t?.properties?.id;
+            if (id !== undefined && id !== null) ids.add(String(id));
+        }
+        const treeCount = ids.size;
         const counterElement = document.getElementById('tree-count');
         if (counterElement) {
             counterElement.textContent = treeCount;
@@ -1100,6 +1123,63 @@ class TreeModule {
                     }
                 });
             }
+        }
+    }
+
+    /**
+     * Toggle trees visibility on/off
+     */
+    toggleTreesVisibility() {
+        const map = this.core.getMap();
+        if (!map || !map.isStyleLoaded()) {
+            console.warn('Map not ready, cannot toggle tree visibility');
+            return;
+        }
+
+        // Toggle visibility state
+        this.treesVisible = !this.treesVisible;
+        const visibility = this.treesVisible ? 'visible' : 'none';
+
+        // Update all tree layers visibility
+        const treeLayers = [
+            'tree-trunks-layer',
+            'tree-canopies-layer',
+            'tree-canopies-billboard-layer'
+        ];
+
+        let layersUpdated = 0;
+        treeLayers.forEach(layerId => {
+            if (map.getLayer(layerId)) {
+                try {
+                    map.setLayoutProperty(layerId, 'visibility', visibility);
+                    layersUpdated++;
+                } catch (error) {
+                    console.warn(`Could not set visibility for layer ${layerId}:`, error);
+                }
+            }
+        });
+
+        // Only update button if at least one layer was updated
+        if (layersUpdated > 0) {
+            // Update button text
+            const toggleButton = document.getElementById('tree-visibility-toggle');
+            if (toggleButton) {
+                const buttonSpan = toggleButton.querySelector('span');
+                if (buttonSpan) {
+                    if (this.treesVisible) {
+                        buttonSpan.textContent = '👁️ Show Trees';
+                        toggleButton.classList.remove('secondary');
+                    } else {
+                        buttonSpan.textContent = '🚫 Hide Trees';
+                        toggleButton.classList.add('secondary');
+                    }
+                }
+            }
+            console.log(`Trees visibility: ${visibility} (${layersUpdated} layers updated)`);
+        } else {
+            // Revert state if no layers were found
+            this.treesVisible = !this.treesVisible;
+            console.warn('No tree layers found to toggle visibility');
         }
     }
 }

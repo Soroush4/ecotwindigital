@@ -61,6 +61,52 @@ body {
     }
 }
 
+/* Menu Toggle Button */
+.menu-toggle-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 48px;
+    height: 48px;
+    background: rgba(20, 20, 20, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    user-select: none;
+}
+
+.menu-toggle-btn:hover {
+    background: rgba(30, 30, 30, 0.95);
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.menu-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.menu-toggle-btn.menu-hidden {
+    left: 20px;
+}
+
+.menu-toggle-btn.menu-visible {
+    left: 368px; /* 20px + 320px (menu width) + 28px (gap) */
+}
+
+#menu-toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
 /* Modern Sidebar */
 #menu {
     position: absolute;
@@ -76,6 +122,21 @@ body {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     max-height: calc(100vh - 40px);
     overflow-y: auto;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    transform: translateX(0);
+    opacity: 1;
+}
+
+#menu.menu-hidden {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+#menu.menu-visible {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* Custom Scrollbar */
@@ -847,6 +908,18 @@ select.control-input option {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .menu-toggle-btn {
+        top: 10px;
+        left: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    
+    .menu-toggle-btn.menu-visible {
+        left: 10px;
+    }
+    
     #menu {
         width: calc(100vw - 40px);
         left: 20px;

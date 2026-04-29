@@ -35,7 +35,12 @@
         </div>
     </div>
     
-    <div id="menu">
+    <!-- Menu Toggle Button -->
+    <button id="menu-toggle" class="menu-toggle-btn menu-visible" title="Toggle Menu">
+        <span id="menu-toggle-icon">✕</span>
+    </button>
+    
+    <div id="menu" class="menu-visible">
         <!-- Data Management Section -->
         <div class="section-header">
             <span>📊 Data Management</span>
@@ -75,6 +80,13 @@
                 <span class="tree-counter-icon">🌳</span>
                 <span class="tree-counter-label">Trees:</span>
                 <span id="tree-count" class="tree-counter-value">0</span>
+            </div>
+            
+            <!-- Tree Visibility Toggle -->
+            <div class="button-row" style="margin-top: 12px; margin-bottom: 12px;">
+                <button id="tree-visibility-toggle" class="modern-btn" style="width: 100%;">
+                    <span>👁️ Show Trees</span>
+                </button>
             </div>
             
             <!-- Tree Parameters -->

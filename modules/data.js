@@ -22,6 +22,38 @@ class DataModule {
     }
 
     /**
+     * Ensure new tree IDs won't collide with loaded data.
+     * Many parts of the app assume `properties.id` is a stable tree identifier used to pair trunk/canopy.
+     * If we load a file that already contains `tree-<n>` IDs but keep `treeIdCounter` at 0,
+     * newly created trees will reuse existing IDs and "tree count" by unique ID will appear capped.
+     */
+    syncTreeIdCounterFromLoadedData() {
+        let maxNumericId = -1;
+
+        const scan = (features) => {
+            for (const f of features) {
+                const id = f?.properties?.id;
+                if (typeof id !== 'string') continue;
+                const m = /^tree-(\d+)$/.exec(id);
+                if (!m) continue;
+                const n = Number(m[1]);
+                if (Number.isFinite(n)) maxNumericId = Math.max(maxNumericId, n);
+            }
+        };
+
+        scan(this.treeTrunkData.features);
+        scan(this.treeCanopyData.features);
+
+        if (maxNumericId >= 0) {
+            const next = maxNumericId + 1;
+            if (this.treeIdCounter < next) {
+                console.log(`Syncing treeIdCounter from ${this.treeIdCounter} to ${next} (loaded max id: tree-${maxNumericId})`);
+                this.treeIdCounter = next;
+            }
+        }
+    }
+
+    /**
      * Set energy statistics module reference
      * @param {EnergyStatsModule} energyStatsModule - Energy statistics module instance
      */
@@ -254,6 +286,9 @@ class DataModule {
         if (loadedTreesCount > 0) {
             console.log(`✓ Tree data: ${loadedTreesCount} trunks, ${loadedCanopiesCount} canopies`);
         }
+
+        // Prevent ID collisions when adding more trees after loading a file
+        this.syncTreeIdCounterFromLoadedData();
         
         if (loadedRoadsCount > 0) {
             console.log(`✓ Road data: ${loadedRoadsCount} road segments loaded`);
@@ -747,24 +782,41 @@ class DataModule {
     placeTreesInPolygon(polygon, count) {
         const minHeight = Number(document.getElementById('tree-min-height').value);
         const maxHeight = Number(document.getElementById('tree-max-height').value);
-        const treeDistance = Number(document.getElementById('brush-tree-distance')?.value || 3); // Minimum distance between trees in meters
+        const requestedTreeDistance = Number(document.getElementById('brush-tree-distance')?.value || 3); // Minimum distance between trees in meters
         
         // Calculate polygon area in square meters
         const polygonArea = turf.area(polygon); // Returns area in square meters
         
-        // Calculate maximum possible trees based on area and tree distance
-        // Each tree needs approximately a circle with radius = treeDistance/2
-        // Area per tree ≈ π * (treeDistance/2)^2
-        const areaPerTree = Math.PI * Math.pow(treeDistance / 2, 2);
-        const maxPossibleTrees = Math.floor(polygonArea / areaPerTree);
+        // Calculate max possible trees based on polygon area and minimum distance between tree centers.
+        // This is a rough packing estimate (not exact), but helps prevent impossible requests.
+        const capacityForDistance = (distanceMeters) => {
+            const d = Math.max(0.0001, distanceMeters);
+            const areaPerTree = Math.PI * Math.pow(d / 2, 2);
+            return Math.floor(polygonArea / areaPerTree);
+        };
         
-        // Use the minimum of requested count and maximum possible
-        const actualCount = Math.min(count, maxPossibleTrees);
+        let treeDistance = requestedTreeDistance;
+        let maxPossibleTrees = capacityForDistance(treeDistance);
+        let actualCount = count;
         
+        // If the requested count exceeds estimated capacity, reduce distance to make it feasible
+        // instead of silently capping the output. This keeps "export/save" consistent with the user's request.
         if (count > maxPossibleTrees) {
-            console.warn(`⚠ Requested ${count} trees, but polygon can only fit ${maxPossibleTrees} trees (area: ${polygonArea.toFixed(2)} m², distance: ${treeDistance}m). Limiting to ${maxPossibleTrees} trees.`);
+            const requiredDistance = Math.sqrt((4 * polygonArea) / (Math.PI * count)); // derived from capacity formula
+            const adjustedDistance = Math.min(requestedTreeDistance, requiredDistance);
+            const clampedDistance = Math.max(0.25, adjustedDistance); // avoid extreme/degenerate values
+            
+            treeDistance = clampedDistance;
+            maxPossibleTrees = capacityForDistance(treeDistance);
+            
+            console.warn(
+                `⚠ Requested ${count} trees exceeds estimated capacity at distance ${requestedTreeDistance}m (capacity≈${capacityForDistance(requestedTreeDistance)}). ` +
+                `Auto-adjusting distance to ${treeDistance.toFixed(3)}m (new capacity≈${maxPossibleTrees}).`
+            );
         } else {
-            console.log(`Placing ${actualCount} trees in polygon (area: ${polygonArea.toFixed(2)} m², max capacity: ${maxPossibleTrees} trees)`);
+            console.log(
+                `Placing ${actualCount} trees in polygon (area: ${polygonArea.toFixed(2)} m², distance: ${treeDistance}m, estimated capacity: ${maxPossibleTrees})`
+            );
         }
         
         // Use grid-based spatial indexing for efficient distance checking

@@ -265,7 +265,61 @@ function getApp() {
     return app;
 }
 
+/**
+ * Setup menu toggle functionality
+ */
+function setupMenuToggle() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const menu = document.getElementById('menu');
+    const menuToggleIcon = document.getElementById('menu-toggle-icon');
+    
+    if (!menuToggle || !menu) return;
+    
+    // Check if menu state is stored in localStorage
+    const savedState = localStorage.getItem('menuVisible');
+    const isVisible = savedState === null ? true : savedState === 'true';
+    
+    // Set initial state
+    if (isVisible) {
+        menu.classList.add('menu-visible');
+        menu.classList.remove('menu-hidden');
+        menuToggle.classList.add('menu-visible');
+        menuToggle.classList.remove('menu-hidden');
+        menuToggleIcon.textContent = '✕';
+    } else {
+        menu.classList.add('menu-hidden');
+        menu.classList.remove('menu-visible');
+        menuToggle.classList.add('menu-hidden');
+        menuToggle.classList.remove('menu-visible');
+        menuToggleIcon.textContent = '☰';
+    }
+    
+    // Toggle menu on button click
+    menuToggle.addEventListener('click', () => {
+        const isCurrentlyVisible = menu.classList.contains('menu-visible');
+        
+        if (isCurrentlyVisible) {
+            // Hide menu
+            menu.classList.remove('menu-visible');
+            menu.classList.add('menu-hidden');
+            menuToggle.classList.remove('menu-visible');
+            menuToggle.classList.add('menu-hidden');
+            menuToggleIcon.textContent = '☰';
+            localStorage.setItem('menuVisible', 'false');
+        } else {
+            // Show menu
+            menu.classList.remove('menu-hidden');
+            menu.classList.add('menu-visible');
+            menuToggle.classList.remove('menu-hidden');
+            menuToggle.classList.add('menu-visible');
+            menuToggleIcon.textContent = '✕';
+            localStorage.setItem('menuVisible', 'true');
+        }
+    });
+}
+
 // Start the application when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     initializeApplication();
+    setupMenuToggle();
 });
